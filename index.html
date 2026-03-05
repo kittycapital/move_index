@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOVE Index Dashboard | HerdVibe</title>
+<meta property="og:title" content="MOVE Index Dashboard | HerdVibe">
+<meta property="og:description" content="채권 변동성 지수(MOVE)와 주요 자산 비교 분석">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0a0a;
+    --bg2:       #111111;
+    --bg3:       #181818;
+    --border:    #222222;
+    --text:      #e8e8e8;
+    --muted:     #666;
+    --move:      #f0b429;
+    --move-fill: rgba(240,180,41,0.08);
+    --vix:       #ff6b6b;
+    --tlt:       #51cf66;
+    --spy:       #74c0fc;
+    --btc:       #ff9f43;
+    --dxy:       #cc5de8;
+    --uso:       #20c997;
+    --gld:       #ffd43b;
+    --zscore-hi: rgba(255,80,80,0.15);
+    --zscore-lo: rgba(81,207,102,0.12);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .header-left { display: flex; flex-direction: column; gap: 4px; }
+  .header-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--move);
+    letter-spacing: -0.5px;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+  .header-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #51cf66;
+    display: inline-block; margin-right: 5px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Period Buttons ── */
+  .period-bar {
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .period-label { font-size: 10px; color: var(--muted); margin-right: 4px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .period-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+  .period-btn:hover { border-color: var(--move); color: var(--move); }
+  .period-btn.active { background: var(--move); border-color: var(--move); color: #0a0a0a; font-weight: 600; }
+
+  /* ── Chart Panels ── */
+  .chart-wrapper {
+    padding: 0 16px 8px;
+  }
+
+  .panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin: 12px 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 10px 16px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .panel-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .panel-title span {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 8px;
+  }
+
+  .panel-stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+
+  /* ── Toggle Buttons ── */
+  .toggle-group {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .toggle-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    opacity: 0.4;
+    font-weight: 600;
+  }
+  .toggle-btn.on { opacity: 1; }
+  .toggle-btn[data-key="VIX"]  { border-color: var(--vix);  color: var(--vix); }
+  .toggle-btn[data-key="TLT"]  { border-color: var(--tlt);  color: var(--tlt); }
+  .toggle-btn[data-key="SPY"]  { border-color: var(--spy);  color: var(--spy); }
+  .toggle-btn[data-key="BTC"]  { border-color: var(--btc);  color: var(--btc); }
+  .toggle-btn[data-key="DXY"]  { border-color: var(--dxy);  color: var(--dxy); }
+  .toggle-btn[data-key="USO"]  { border-color: var(--uso);  color: var(--uso); }
+  .toggle-btn[data-key="GLD"]  { border-color: var(--gld);  color: var(--gld); }
+  .toggle-btn.on[data-key="VIX"]  { background: rgba(255,107,107,0.15); }
+  .toggle-btn.on[data-key="TLT"]  { background: rgba(81,207,102,0.15); }
+  .toggle-btn.on[data-key="SPY"]  { background: rgba(116,192,252,0.15); }
+  .toggle-btn.on[data-key="BTC"]  { background: rgba(255,159,67,0.15); }
+  .toggle-btn.on[data-key="DXY"]  { background: rgba(204,93,232,0.15); }
+  .toggle-btn.on[data-key="USO"]  { background: rgba(32,201,151,0.15); }
+  .toggle-btn.on[data-key="GLD"]  { background: rgba(255,212,59,0.15); }
+
+  /* ── Canvas ── */
+  .canvas-container {
+    position: relative;
+    padding: 8px 8px 4px;
+  }
+  canvas { display: block; width: 100% !important; }
+
+  /* ── Z-Score bar ── */
+  .zscore-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 16px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+  .zscore-item { display: flex; align-items: center; gap: 5px; }
+  .zscore-label { color: var(--muted); }
+  .zscore-val { font-weight: 600; }
+
+  /* ── Divider label ── */
+  .divider-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .divider-label::before, .divider-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Share bar ── */
+  .share-bar {
+    padding: 10px 16px;
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .share-label { font-size: 10px; color: var(--muted); margin-right: 2px; }
+  .share-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+  .share-btn:hover { color: var(--text); border-color: #444; }
+
+  /* ── Watermark ── */
+  .watermark {
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.06);
+    pointer-events: none;
+    letter-spacing: 1px;
+    user-select: none;
+  }
+
+  /* ── Zoom reset ── */
+  .zoom-reset-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .zoom-reset-btn:hover { border-color: var(--move); color: var(--move); }
+
+  /* ── Guide ── */
+  .guide-block {
+    margin: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .guide-header {
+    padding: 8px 14px;
+    background: var(--bg2);
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .guide-body {
+    padding: 12px 16px;
+    font-size: 12px;
+    line-height: 1.8;
+    color: #aaa;
+    display: none;
+    background: var(--bg);
+  }
+  .guide-body.open { display: block; }
+  .guide-body p + p { margin-top: 8px; }
+  .guide-body strong { color: var(--move); }
+
+  /* ── Loading ── */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    z-index: 9999;
+    transition: opacity 0.4s;
+  }
+  .loading-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--move);
+    letter-spacing: 1px;
+  }
+  .loading-bar {
+    width: 160px; height: 2px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .loading-fill {
+    height: 100%; width: 0;
+    background: var(--move);
+    border-radius: 2px;
+    animation: load 1.5s ease forwards;
+  }
+  @keyframes load { to { width: 100%; } }
+
+  @media (max-width: 600px) {
+    .header { padding: 14px 14px 12px; }
+    .header-title { font-size: 16px; }
+    .chart-wrapper { padding: 0 8px 8px; }
+    .period-bar { padding: 8px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="loading-text">MOVE INDEX</div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-title">⚡ MOVE Index Dashboard</div>
+    <div class="header-sub">채권 변동성 지수 (ICE BofA MOVE) — 자산 간 연동 분석</div>
+  </div>
+  <div class="header-meta">
+    <div><span class="live-dot"></span><span id="updated-at">로딩 중...</span></div>
+    <div>herdvibe.com</div>
+  </div>
+</div>
+
+<!-- Period Bar -->
+<div class="period-bar">
+  <span class="period-label">기간</span>
+  <button class="period-btn" data-months="6">6M</button>
+  <button class="period-btn" data-months="12">1Y</button>
+  <button class="period-btn" data-months="24">2Y</button>
+  <button class="period-btn" data-months="60">5Y</button>
+  <button class="period-btn" data-months="120">10Y</button>
+  <button class="period-btn active" data-months="0">ALL</button>
+  <button class="zoom-reset-btn" id="reset-zoom" style="margin-left:auto">↺ 줌 초기화</button>
+</div>
+
+<!-- Charts -->
+<div class="chart-wrapper">
+
+  <!-- Panel 1: MOVE Index -->
+  <div class="panel" id="panel-move">
+    <div class="panel-header">
+      <div>
+        <span class="panel-title" style="color:var(--move)">MOVE INDEX</span>
+        <span class="panel-title" style="font-size:10px;color:var(--muted);font-family:'Noto Sans KR'">ICE BofA 채권 변동성 지수</span>
+      </div>
+      <div class="panel-stat" id="move-current" style="color:var(--move)">—</div>
+    </div>
+    <div class="canvas-container" style="height:300px">
+      <canvas id="moveChart"></canvas>
+      <div class="watermark">HERDVIBE.COM</div>
+    </div>
+    <div class="zscore-bar">
+      <div class="zscore-item">
+        <span class="zscore-label">Z-Score (252d)</span>
+        <span class="zscore-val" id="z-val">—</span>
+      </div>
+      <div class="zscore-item">
+        <span class="zscore-label">52W High</span>
+        <span class="zscore-val" id="move-52h" style="color:#ff6b6b">—</span>
+      </div>
+      <div class="zscore-item">
+        <span class="zscore-label">52W Low</span>
+        <span class="zscore-val" id="move-52l" style="color:#51cf66">—</span>
+      </div>
+      <div class="zscore-item">
+        <span class="zscore-label">All-Time High</span>
+        <span class="zscore-val" id="move-ath" style="color:#ffd43b">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider-label">▼ INDICATOR</div>
+
+  <!-- Panel 2: Multi-Asset Indicator -->
+  <div class="panel" id="panel-indicator">
+    <div class="panel-header">
+      <div>
+        <span class="panel-title">멀티 자산</span>
+        <span class="panel-title" style="font-size:10px;color:var(--muted);font-family:'Noto Sans KR'">기간 시작 기준 % 변화율</span>
+      </div>
+      <div class="toggle-group" id="toggles">
+        <button class="toggle-btn on" data-key="VIX">VIX</button>
+        <button class="toggle-btn on" data-key="TLT">TLT</button>
+        <button class="toggle-btn on" data-key="SPY">SPY</button>
+        <button class="toggle-btn on" data-key="BTC">BTC</button>
+        <button class="toggle-btn on" data-key="DXY">DXY</button>
+        <button class="toggle-btn on" data-key="USO">USO</button>
+        <button class="toggle-btn on" data-key="GLD">GLD</button>
+      </div>
+    </div>
+    <div class="canvas-container" style="height:260px">
+      <canvas id="indicatorChart"></canvas>
+      <div class="watermark">HERDVIBE.COM</div>
+    </div>
+  </div>
+
+  <!-- Panel 3: Z-Score -->
+  <div class="panel" id="panel-zscore">
+    <div class="panel-header">
+      <div>
+        <span class="panel-title" style="color:#a78bfa">MOVE Z-SCORE</span>
+        <span class="panel-title" style="font-size:10px;color:var(--muted);font-family:'Noto Sans KR'">252일 롤링 기준</span>
+      </div>
+      <div class="panel-stat" id="zscore-current" style="color:#a78bfa">—</div>
+    </div>
+    <div class="canvas-container" style="height:160px">
+      <canvas id="zscoreChart"></canvas>
+      <div class="watermark">HERDVIBE.COM</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Guide -->
+<div class="guide-block">
+  <div class="guide-header" onclick="toggleGuide(this)">
+    <span>📖 사용 가이드</span><span>▼</span>
+  </div>
+  <div class="guide-body">
+    <p><strong>MOVE Index</strong>는 미국 채권시장의 변동성을 나타내는 지수입니다. VIX가 주식시장의 공포지수라면, MOVE는 채권시장의 공포지수로 볼 수 있습니다. 일반적으로 <strong>100 이상이면 높은 변동성</strong>, 150 이상이면 위기 수준으로 해석합니다.</p>
+    <p>아래 <strong>멀티 자산 인디케이터</strong>는 MOVE가 상승/하락할 때 주요 자산(VIX, TLT, SPY, BTC, DXY, USO, GLD)이 어떻게 반응했는지 비교 분석합니다. 기간 버튼이나 차트 드래그로 범위를 바꾸면 두 차트가 함께 연동됩니다.</p>
+    <p><strong>Z-Score 패널</strong>은 현재 MOVE 수준이 252일(약 1년) 역사 대비 얼마나 극단적인지 보여줍니다. +2 이상은 과열(채권 패닉), -2 이하는 과냉(채권 안정) 구간입니다. 위기 구간(금융위기, 코로나, Fed 긴축)은 배경색으로 표시되어 있습니다.</p>
+  </div>
+</div>
+
+<!-- Share Bar -->
+<div class="share-bar">
+  <span class="share-label">공유</span>
+  <button class="share-btn" onclick="shareTwitter()">𝕏 Twitter</button>
+  <button class="share-btn" onclick="shareKakao()">💬 KakaoTalk</button>
+  <button class="share-btn" onclick="shareTelegram()">✈️ Telegram</button>
+  <button class="share-btn" onclick="copyLink()">🔗 링크 복사</button>
+</div>
+
+<script>
+// ── 설정 ──────────────────────────────────────────────────────────────────────
+const DATA_URL = 'data/move_dashboard.json';
+
+const COLORS = {
+  MOVE: '#f0b429',
+  VIX:  '#ff6b6b',
+  TLT:  '#51cf66',
+  SPY:  '#74c0fc',
+  BTC:  '#ff9f43',
+  DXY:  '#cc5de8',
+  USO:  '#20c997',
+  GLD:  '#ffd43b',
+  MOVE_Z: '#a78bfa',
+};
+
+const INDICATOR_KEYS = ['VIX','TLT','SPY','BTC','DXY','USO','GLD'];
+
+let rawData = null;
+let moveChart = null;
+let indicatorChart = null;
+let zscoreChart = null;
+let activeToggles = new Set(INDICATOR_KEYS);
+let currentPeriodMs = 0; // 0 = ALL
+
+// ── 데이터 로드 ────────────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch(DATA_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    rawData = await res.json();
+  } catch(e) {
+    // Demo fallback: generate synthetic data
+    rawData = generateDemoData();
+  }
+}
+
+// ── 데모 데이터 (파일 없을 때) ─────────────────────────────────────────────────
+function generateDemoData() {
+  const now = Date.now();
+  const day = 86400000;
+  const series = {};
+  const keys = ['MOVE','VIX','TLT','SPY','BTC','DXY','USO','GLD','MOVE_Z'];
+  const baseVals = { MOVE:100, VIX:20, TLT:90, SPY:400, BTC:30000, DXY:100, USO:70, GLD:170, MOVE_Z:0 };
+  const vols     = { MOVE:15, VIX:5,  TLT:5,  SPY:30,  BTC:5000,  DXY:3,  USO:5,  GLD:10,  MOVE_Z:0.5 };
+
+  keys.forEach(k => {
+    let v = baseVals[k];
+    const pts = [];
+    for (let i = 6*365; i >= 0; i--) {
+      const ts = now - i * day;
+      v += (Math.random()-0.48) * vols[k];
+      if (k === 'MOVE') v = Math.max(40, Math.min(250, v));
+      if (k === 'VIX')  v = Math.max(10, Math.min(80, v));
+      pts.push([ts, +v.toFixed(2)]);
+    }
+    series[k] = pts;
+  });
+
+  return {
+    updated_at: new Date().toISOString(),
+    crisis_zones: [
+      { label:'금융위기',    start:'2008-09-01', end:'2009-03-31', color:'rgba(255,80,80,0.12)' },
+      { label:'코로나 충격', start:'2020-02-15', end:'2020-05-31', color:'rgba(255,140,0,0.12)' },
+      { label:'Fed 긴축',   start:'2022-01-01', end:'2023-06-30', color:'rgba(255,200,0,0.12)' },
+    ],
+    series
+  };
+}
+
+// ── 기간 필터 ──────────────────────────────────────────────────────────────────
+function filterByPeriod(pts, months) {
+  if (!months || months === 0) return pts;
+  const cutoff = Date.now() - months * 30 * 86400000;
+  return pts.filter(p => p[0] >= cutoff);
+}
+
+// ── % 정규화 (기간 시작 기준) ──────────────────────────────────────────────────
+function normalizePercent(pts) {
+  if (!pts || pts.length === 0) return [];
+  const base = pts[0][1];
+  if (!base) return pts;
+  return pts.map(p => [p[0], +((p[1]/base - 1)*100).toFixed(3)]);
+}
+
+// ── 위기 구간 annotation 플러그인 (직접 구현) ─────────────────────────────────
+function makeCrisisPlugin(zones) {
+  return {
+    id: 'crisisZones',
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea) return;
+      const xScale = scales.x;
+      zones.forEach(z => {
+        const x1 = xScale.getPixelForValue(new Date(z.start).getTime());
+        const x2 = xScale.getPixelForValue(new Date(z.end).getTime());
+        const left  = Math.max(chartArea.left,  Math.min(x1, x2));
+        const right = Math.min(chartArea.right, Math.max(x1, x2));
+        if (right <= left) return;
+        ctx.save();
+        ctx.fillStyle = z.color;
+        ctx.fillRect(left, chartArea.top, right-left, chartArea.bottom-chartArea.top);
+        ctx.restore();
+      });
+    }
+  };
+}
+
+// ── 공통 차트 옵션 ─────────────────────────────────────────────────────────────
+function commonOptions(onZoomPan) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 300 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(10,10,10,0.92)',
+        borderColor: '#333',
+        borderWidth: 1,
+        titleFont: { family: 'JetBrains Mono', size: 11 },
+        bodyFont:  { family: 'JetBrains Mono', size: 11 },
+        titleColor: '#aaa',
+        bodyColor: '#e8e8e8',
+        padding: 10,
+        callbacks: {
+          title(items) {
+            const d = new Date(items[0].parsed.x);
+            return d.toISOString().slice(0,10);
+          }
+        }
+      },
+      zoom: {
+        zoom: {
+          wheel: { enabled: true },
+          pinch: { enabled: true },
+          mode: 'x',
+          onZoom: onZoomPan,
+        },
+        pan: {
+          enabled: true,
+          mode: 'x',
+          onPan: onZoomPan,
+        },
+      }
+    },
+    scales: {
+      x: {
+        type: 'time',
+        time: { tooltipFormat: 'yyyy-MM-dd' },
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: {
+          color: '#555',
+          font: { family: 'JetBrains Mono', size: 10 },
+          maxTicksLimit: 8,
+          autoSkip: true,
+        },
+      },
+      y: {
+        position: 'right',
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        ticks: {
+          color: '#555',
+          font: { family: 'JetBrains Mono', size: 10 },
+          maxTicksLimit: 6,
+        },
+      }
+    }
+  };
+}
+
+// ── 차트 초기화 ────────────────────────────────────────────────────────────────
+function buildMoveChart() {
+  const pts = filterByPeriod(rawData.series['MOVE'] || [], currentPeriodMs);
+  const crisisPlugin = makeCrisisPlugin(rawData.crisis_zones || []);
+
+  const opts = commonOptions(syncFromMove);
+  opts.plugins.tooltip.callbacks.label = (item) => ` MOVE: ${item.parsed.y.toFixed(1)}`;
+
+  // 100, 150 기준선 포함
+  opts.plugins.annotation = {};
+
+  moveChart = new Chart(document.getElementById('moveChart'), {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'MOVE',
+        data: pts.map(p => ({x: p[0], y: p[1]})),
+        borderColor: COLORS.MOVE,
+        backgroundColor: 'rgba(240,180,41,0.06)',
+        borderWidth: 1.5,
+        fill: true,
+        pointRadius: 0,
+        tension: 0.2,
+      }]
+    },
+    options: opts,
+    plugins: [crisisPlugin],
+  });
+
+  updateMoveStats(pts);
+}
+
+function buildIndicatorChart() {
+  const opts = commonOptions(syncFromIndicator);
+  opts.plugins.tooltip.callbacks.label = (item) => ` ${item.dataset.label}: ${item.parsed.y.toFixed(2)}%`;
+  opts.scales.y.ticks.callback = v => v.toFixed(0) + '%';
+
+  // 0 기준선
+  opts.scales.y.grid = {
+    color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'
+  };
+
+  indicatorChart = new Chart(document.getElementById('indicatorChart'), {
+    type: 'line',
+    data: { datasets: [] },
+    options: opts,
+  });
+
+  rebuildIndicatorDatasets();
+}
+
+function buildZScoreChart() {
+  const pts = filterByPeriod(rawData.series['MOVE_Z'] || [], currentPeriodMs);
+  const crisisPlugin = makeCrisisPlugin(rawData.crisis_zones || []);
+
+  const opts = commonOptions(() => {});
+  opts.plugins.zoom.zoom.onZoom = null;
+  opts.plugins.zoom.pan.onPan = null;
+
+  // z=0, +2, -2 색상 그리드
+  opts.scales.y.grid = {
+    color: ctx => {
+      if (ctx.tick.value === 2 || ctx.tick.value === -2) return 'rgba(255,100,100,0.3)';
+      if (ctx.tick.value === 0) return 'rgba(255,255,255,0.12)';
+      return 'rgba(255,255,255,0.04)';
+    }
+  };
+
+  zscoreChart = new Chart(document.getElementById('zscoreChart'), {
+    type: 'bar',
+    data: {
+      datasets: [{
+        label: 'Z-Score',
+        data: pts.map(p => ({x: p[0], y: p[1]})),
+        backgroundColor: pts.map(p => {
+          if (p[1] >= 2)   return 'rgba(255,107,107,0.7)';
+          if (p[1] <= -2)  return 'rgba(81,207,102,0.7)';
+          return 'rgba(167,139,250,0.5)';
+        }),
+        borderWidth: 0,
+        barThickness: 'flex',
+      }]
+    },
+    options: opts,
+    plugins: [crisisPlugin],
+  });
+
+  const latest = pts.length ? pts[pts.length-1][1] : null;
+  if (latest !== null) {
+    const el = document.getElementById('zscore-current');
+    el.textContent = latest.toFixed(2);
+    el.style.color = latest >= 2 ? '#ff6b6b' : latest <= -2 ? '#51cf66' : '#a78bfa';
+  }
+}
+
+// ── Indicator 데이터셋 재구성 ──────────────────────────────────────────────────
+function rebuildIndicatorDatasets() {
+  const datasets = [];
+  INDICATOR_KEYS.forEach(key => {
+    if (!activeToggles.has(key)) return;
+    const raw = rawData.series[key] || [];
+    const filtered = filterByPeriod(raw, currentPeriodMs);
+    const pts = normalizePercent(filtered);
+    datasets.push({
+      label: key,
+      data: pts.map(p => ({x: p[0], y: p[1]})),
+      borderColor: COLORS[key],
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.2,
+    });
+  });
+  indicatorChart.data.datasets = datasets;
+  indicatorChart.update('none');
+}
+
+// ── 줌 싱크 ───────────────────────────────────────────────────────────────────
+function syncFromMove({ chart }) {
+  const { min, max } = chart.scales.x;
+  if (indicatorChart) {
+    indicatorChart.options.scales.x.min = min;
+    indicatorChart.options.scales.x.max = max;
+    // re-normalize based on visible window
+    rebuildIndicatorDatasetsZoomed(min, max);
+  }
+}
+
+function syncFromIndicator({ chart }) {
+  const { min, max } = chart.scales.x;
+  if (moveChart) {
+    moveChart.options.scales.x.min = min;
+    moveChart.options.scales.x.max = max;
+    moveChart.update('none');
+  }
+}
+
+function rebuildIndicatorDatasetsZoomed(minTs, maxTs) {
+  const datasets = [];
+  INDICATOR_KEYS.forEach(key => {
+    if (!activeToggles.has(key)) return;
+    const raw = rawData.series[key] || [];
+    // filter to visible window
+    const filtered = raw.filter(p => p[0] >= minTs && p[0] <= maxTs);
+    const pts = normalizePercent(filtered);
+    datasets.push({
+      label: key,
+      data: pts.map(p => ({x: p[0], y: p[1]})),
+      borderColor: COLORS[key],
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.2,
+    });
+  });
+  indicatorChart.data.datasets = datasets;
+  indicatorChart.update('none');
+}
+
+// ── 기간 버튼 ──────────────────────────────────────────────────────────────────
+function applyPeriod(months) {
+  currentPeriodMs = months;
+
+  // MOVE
+  const movePts = filterByPeriod(rawData.series['MOVE'] || [], months);
+  moveChart.data.datasets[0].data = movePts.map(p => ({x:p[0], y:p[1]}));
+  moveChart.options.scales.x.min = undefined;
+  moveChart.options.scales.x.max = undefined;
+  moveChart.resetZoom();
+  moveChart.update('none');
+  updateMoveStats(movePts);
+
+  // Indicator
+  indicatorChart.options.scales.x.min = undefined;
+  indicatorChart.options.scales.x.max = undefined;
+  indicatorChart.resetZoom();
+  rebuildIndicatorDatasets();
+
+  // Z-Score
+  const zPts = filterByPeriod(rawData.series['MOVE_Z'] || [], months);
+  zscoreChart.data.datasets[0].data = zPts.map(p => ({x:p[0], y:p[1]}));
+  zscoreChart.data.datasets[0].backgroundColor = zPts.map(p => {
+    if (p[1] >= 2)  return 'rgba(255,107,107,0.7)';
+    if (p[1] <= -2) return 'rgba(81,207,102,0.7)';
+    return 'rgba(167,139,250,0.5)';
+  });
+  zscoreChart.options.scales.x.min = undefined;
+  zscoreChart.options.scales.x.max = undefined;
+  zscoreChart.resetZoom();
+  zscoreChart.update('none');
+}
+
+// ── MOVE 통계 업데이트 ─────────────────────────────────────────────────────────
+function updateMoveStats(pts) {
+  if (!pts.length) return;
+  const vals = pts.map(p => p[1]);
+  const latest = vals[vals.length-1];
+  document.getElementById('move-current').textContent = latest.toFixed(1);
+
+  const yr252 = pts.slice(-252).map(p => p[1]);
+  document.getElementById('move-52h').textContent = Math.max(...yr252).toFixed(1);
+  document.getElementById('move-52l').textContent = Math.min(...yr252).toFixed(1);
+  document.getElementById('move-ath').textContent = Math.max(...vals).toFixed(1);
+
+  // Z-Score stat
+  const zPts = rawData.series['MOVE_Z'] || [];
+  if (zPts.length) {
+    const zLatest = zPts[zPts.length-1][1];
+    const el = document.getElementById('z-val');
+    el.textContent = zLatest.toFixed(2);
+    el.style.color = zLatest >= 2 ? '#ff6b6b' : zLatest <= -2 ? '#51cf66' : '#e8e8e8';
+  }
+}
+
+// ── Toggle 이벤트 ──────────────────────────────────────────────────────────────
+document.getElementById('toggles').addEventListener('click', e => {
+  const btn = e.target.closest('.toggle-btn');
+  if (!btn) return;
+  const key = btn.dataset.key;
+  if (activeToggles.has(key)) {
+    activeToggles.delete(key);
+    btn.classList.remove('on');
+  } else {
+    activeToggles.add(key);
+    btn.classList.add('on');
+  }
+  rebuildIndicatorDatasets();
+});
+
+// ── 기간 버튼 이벤트 ──────────────────────────────────────────────────────────
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyPeriod(parseInt(btn.dataset.months) || 0);
+  });
+});
+
+// ── 줌 리셋 ───────────────────────────────────────────────────────────────────
+document.getElementById('reset-zoom').addEventListener('click', () => {
+  moveChart.resetZoom();
+  indicatorChart.resetZoom();
+  zscoreChart.resetZoom();
+  rebuildIndicatorDatasets();
+});
+
+// ── 가이드 토글 ───────────────────────────────────────────────────────────────
+function toggleGuide(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+  header.querySelector('span:last-child').textContent = body.classList.contains('open') ? '▲' : '▼';
+}
+
+// ── 공유 기능 ──────────────────────────────────────────────────────────────────
+function shareTwitter() {
+  const url = encodeURIComponent(location.href);
+  const text = encodeURIComponent('📊 MOVE Index (채권 변동성 지수) 실시간 분석 | HerdVibe');
+  window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`,'_blank');
+}
+function shareTelegram() {
+  const url = encodeURIComponent(location.href);
+  window.open(`https://t.me/share/url?url=${url}&text=MOVE Index Dashboard | HerdVibe`,'_blank');
+}
+function shareKakao() {
+  if (window.Kakao) {
+    Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: {
+        title: 'MOVE Index Dashboard | HerdVibe',
+        description: '채권 변동성 지수 실시간 분석',
+        imageUrl: 'https://herdvibe.com/img/og-move.png',
+        link: { mobileWebUrl: location.href, webUrl: location.href }
+      }
+    });
+  }
+}
+function copyLink() {
+  const copy = text => {
+    if (navigator.clipboard) return navigator.clipboard.writeText(text);
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    return Promise.resolve();
+  };
+  copy(location.href).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✅ 복사됨';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+// ── 초기화 ─────────────────────────────────────────────────────────────────────
+async function init() {
+  await loadData();
+
+  document.getElementById('updated-at').textContent = rawData.updated_at || '';
+
+  buildMoveChart();
+  buildIndicatorChart();
+  buildZScoreChart();
+
+  // Hide loading
+  const loading = document.getElementById('loading');
+  loading.style.opacity = '0';
+  setTimeout(() => loading.style.display = 'none', 400);
+}
+
+init();
+</script>
+
+<!-- KakaoTalk SDK -->
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
+<script>
+  if (window.Kakao && !Kakao.isInitialized()) {
+    Kakao.init('a43ed7b39fac35458f4f9df925a279b5');
+  }
+</script>
+</body>
+</html>
