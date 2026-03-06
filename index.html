@@ -723,15 +723,12 @@ function getCommonXRange() {
 }
 
 function buildMoveChart() {
-  const pts = filterByPeriod(rawData.series['MOVE'] || [], currentPeriodMs);
+  const pts = rawData.series['MOVE'] || [];
   const crisisPlugin = makeCrisisPlugin(rawData.crisis_zones || []);
-  const { min, max } = getCommonXRange();
 
   const opts = commonOptions(syncFromMove);
   opts.plugins.tooltip.callbacks.label = (item) => ` MOVE: ${item.parsed.y.toFixed(1)}`;
   opts.plugins.annotation = {};
-  opts.scales.x.min = min;
-  opts.scales.x.max = max;
 
   moveChart = new Chart(document.getElementById('moveChart'), {
     type: 'line',
@@ -756,15 +753,11 @@ function buildMoveChart() {
 
 function buildIndicatorChart() {
   const crisisPlugin = makeCrisisPlugin(rawData.crisis_zones || []);
-  const { min, max } = getCommonXRange();
 
   const opts = commonOptions(syncFromIndicator);
   opts.plugins.tooltip.callbacks.label = (item) => ` ${item.dataset.label}: ${item.parsed.y.toFixed(2)}%`;
   opts.scales.y.ticks.callback = v => v.toFixed(0) + '%';
-  opts.scales.x.min = min;
-  opts.scales.x.max = max;
 
-  // 0 기준선
   opts.scales.y.grid = {
     color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'
   };
@@ -780,17 +773,13 @@ function buildIndicatorChart() {
 }
 
 function buildZScoreChart() {
-  const pts = filterByPeriod(rawData.series['MOVE_Z'] || [], currentPeriodMs);
+  const pts = rawData.series['MOVE_Z'] || [];
   const crisisPlugin = makeCrisisPlugin(rawData.crisis_zones || []);
-  const { min, max } = getCommonXRange();
 
   const opts = commonOptions(() => {});
   opts.plugins.zoom.zoom.onZoom = null;
   opts.plugins.zoom.pan.onPan = null;
-  opts.scales.x.min = min;
-  opts.scales.x.max = max;
 
-  // z=0, +2, -2 색상 그리드
   opts.scales.y.grid = {
     color: ctx => {
       if (ctx.tick.value === 2 || ctx.tick.value === -2) return 'rgba(255,100,100,0.3)';
@@ -828,18 +817,13 @@ function buildZScoreChart() {
 
 // ── Indicator 데이터셋 재구성 ──────────────────────────────────────────────────
 function rebuildIndicatorDatasets() {
-  // MOVE 기준 x범위로 필터링 (각 자산의 시작일이 달라도 같은 구간 표시)
-  const movePts = filterByPeriod(rawData.series['MOVE'] || [], currentPeriodMs);
-  const xMin = movePts.length ? movePts[0][0] : 0;
-  const xMax = movePts.length ? movePts[movePts.length - 1][0] : Date.now();
-
+  // 전체 데이터를 로드 (뷰 조정은 x축 min/max로 처리)
   const datasets = [];
   INDICATOR_KEYS.forEach(key => {
     if (!activeToggles.has(key)) return;
     const raw = rawData.series[key] || [];
-    // MOVE 범위와 동일한 구간으로 자름
-    const filtered = raw.filter(p => p[0] >= xMin && p[0] <= xMax);
-    const pts = normalizePercent(filtered);
+    // 전체 기간 기준 정규화 (시작점 = 데이터 첫번째 값)
+    const pts = normalizePercent(raw);
     datasets.push({
       label: key,
       data: pts.map(p => ({x: p[0], y: p[1]})),
@@ -909,37 +893,26 @@ function rebuildIndicatorDatasetsZoomed(minTs, maxTs) {
 function applyPeriod(months) {
   currentPeriodMs = months;
 
-  // MOVE 기준으로 공통 x범위 계산
-  const movePts = filterByPeriod(rawData.series['MOVE'] || [], months);
-  const xMin = movePts.length ? movePts[0][0] : undefined;
-  const xMax = movePts.length ? movePts[movePts.length - 1][0] : undefined;
+  // 전체 데이터 기준 x범위
+  const allMovePts = rawData.series['MOVE'] || [];
+  const globalMin = allMovePts.length ? allMovePts[0][0] : undefined;
+  const globalMax = allMovePts.length ? allMovePts[allMovePts.length - 1][0] : undefined;
 
-  // MOVE 차트
-  moveChart.data.datasets[0].data = movePts.map(p => ({x:p[0], y:p[1]}));
-  moveChart.options.scales.x.min = xMin;
-  moveChart.options.scales.x.max = xMax;
-  safeResetZoom(moveChart);
-  moveChart.update('none');
-  updateMoveStats(movePts);
+  // 뷰 윈도우 계산 (0 = ALL)
+  const viewMin = months > 0 ? Date.now() - months * 30 * 86400000 : globalMin;
+  const viewMax = globalMax;
 
-  // Indicator 차트 — x범위 MOVE와 동일하게 고정
-  indicatorChart.options.scales.x.min = xMin;
-  indicatorChart.options.scales.x.max = xMax;
-  safeResetZoom(indicatorChart);
-  rebuildIndicatorDatasets();
-
-  // Z-Score 차트
-  const zPts = filterByPeriod(rawData.series['MOVE_Z'] || [], months);
-  zscoreChart.data.datasets[0].data = zPts.map(p => ({x:p[0], y:p[1]}));
-  zscoreChart.data.datasets[0].backgroundColor = zPts.map(p => {
-    if (p[1] >= 2)  return 'rgba(255,107,107,0.7)';
-    if (p[1] <= -2) return 'rgba(81,207,102,0.7)';
-    return 'rgba(167,139,250,0.5)';
+  // 세 차트 모두 x축 뷰만 조정 (데이터는 그대로)
+  [moveChart, indicatorChart, zscoreChart].forEach(chart => {
+    if (!chart) return;
+    chart.options.scales.x.min = viewMin;
+    chart.options.scales.x.max = viewMax;
+    safeResetZoom(chart);
+    chart.update('none');
   });
-  zscoreChart.options.scales.x.min = xMin;
-  zscoreChart.options.scales.x.max = xMax;
-  safeResetZoom(zscoreChart);
-  zscoreChart.update('none');
+
+  updateMoveStats(allMovePts);
+  rebuildIndicatorDatasets();
 }
 
 // ── MOVE 통계 업데이트 ─────────────────────────────────────────────────────────
