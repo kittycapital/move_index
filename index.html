@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MOVE Index Dashboard | HerdVibe</title>
-<meta property="og:title" content="MOVE Index Dashboard | HerdVibe">
+<title>무브 인덱스(Move Index) | HerdVibe</title>
+<meta property="og:title" content="무브 인덱스(Move Index) | HerdVibe">
 <meta property="og:description" content="채권 변동성 지수(MOVE)와 주요 자산 비교 분석">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -46,21 +47,20 @@
 
   /* ── Header ── */
   .header {
-    padding: 20px 24px 16px;
+    padding: 24px 24px 18px;
     border-bottom: 1px solid var(--border);
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
   }
-  .header-left { display: flex; flex-direction: column; gap: 4px; }
   .header-title {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--move);
-    letter-spacing: -0.5px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
   }
   .header-sub {
     font-size: 11px;
@@ -71,11 +71,10 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     color: var(--muted);
-    text-align: right;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-end;
+    gap: 12px;
+    align-items: center;
+    margin-top: 2px;
   }
   .live-dot {
     width: 7px; height: 7px; border-radius: 50%;
@@ -189,8 +188,12 @@
   .canvas-container {
     position: relative;
     padding: 8px 8px 4px;
+    width: 100%;
   }
-  canvas { display: block; width: 100% !important; }
+  .canvas-container canvas {
+    display: block;
+    width: 100% !important;
+  }
 
   /* ── Z-Score bar ── */
   .zscore-bar {
@@ -228,26 +231,73 @@
 
   /* ── Share bar ── */
   .share-bar {
-    padding: 10px 16px;
     display: flex;
-    gap: 8px;
-    border-top: 1px solid var(--border);
-    flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 20px;
+    margin: 12px 16px;
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 10px;
+    flex-wrap: wrap;
   }
-  .share-label { font-size: 10px; color: var(--muted); margin-right: 2px; }
-  .share-btn {
+  .share-bar-preview {
+    font-size: 11px;
+    color: #666;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    padding: 4px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--muted);
-    transition: all 0.15s;
   }
-  .share-btn:hover { color: var(--text); border-color: #444; }
+  .share-bar-preview b { color: #aaa; font-weight: 600; }
+  .share-bar-buttons { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    border: 1px solid #333;
+    background: #181818;
+    color: #888;
+    white-space: nowrap;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .share-btn:hover { transform: translateY(-1px); color: #e8e8e8; }
+  .share-btn svg { flex-shrink: 0; }
+  .share-btn--x:hover      { border-color: #fff; color: #fff; background: #222; }
+  .share-btn--kakao:hover  { border-color: #FEE500; color: #191919; background: #FEE500; }
+  .share-btn--tg:hover     { border-color: #26A5E4; color: #fff; background: rgba(38,165,228,.15); }
+  .share-btn--ig:hover     { border-color: #E4405F; color: #fff; background: rgba(228,64,95,.15); }
+  .share-btn--copy:hover   { border-color: #00ff88; color: #00ff88; background: rgba(0,255,136,.07); }
+
+  /* ── Toast ── */
+  .toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 999; }
+  .toast {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-left: 3px solid #00ff88;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 12px;
+    color: #e8e8e8;
+    box-shadow: 0 8px 32px rgba(0,0,0,.7);
+    animation: toastIn .3s ease;
+  }
+  @keyframes toastIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  @media (max-width: 600px) {
+    .share-bar { flex-direction: column; gap: 10px; align-items: stretch; margin: 8px; }
+    .share-bar-preview { max-width: 100%; }
+    .share-bar-buttons { justify-content: center; flex-wrap: wrap; }
+    .share-btn .lbl { display: none; }
+    .share-btn { padding: 8px 10px; }
+  }
 
   /* ── Watermark ── */
   .watermark {
@@ -353,13 +403,13 @@
 
 <!-- Header -->
 <div class="header">
-  <div class="header-left">
-    <div class="header-title">⚡ MOVE Index Dashboard</div>
-    <div class="header-sub">채권 변동성 지수 (ICE BofA MOVE) — 자산 간 연동 분석</div>
-  </div>
+  <div class="header-title">무브 인덱스(Move Index)</div>
+  <div class="header-sub">채권 변동성 지수 (ICE BofA MOVE) — 자산 간 연동 분석</div>
   <div class="header-meta">
-    <div><span class="live-dot"></span><span id="updated-at">로딩 중...</span></div>
-    <div>herdvibe.com</div>
+    <span class="live-dot"></span>
+    <span id="updated-at">로딩 중...</span>
+    <span style="color:#333">|</span>
+    <span>herdvibe.com</span>
   </div>
 </div>
 
@@ -387,8 +437,8 @@
       </div>
       <div class="panel-stat" id="move-current" style="color:var(--move)">—</div>
     </div>
-    <div class="canvas-container" style="height:300px">
-      <canvas id="moveChart"></canvas>
+    <div class="canvas-container">
+      <canvas id="moveChart" height="300"></canvas>
       <div class="watermark">HERDVIBE.COM</div>
     </div>
     <div class="zscore-bar">
@@ -421,17 +471,17 @@
         <span class="panel-title" style="font-size:10px;color:var(--muted);font-family:'Noto Sans KR'">기간 시작 기준 % 변화율</span>
       </div>
       <div class="toggle-group" id="toggles">
-        <button class="toggle-btn on" data-key="VIX">VIX</button>
-        <button class="toggle-btn on" data-key="TLT">TLT</button>
+        <button class="toggle-btn" data-key="VIX">VIX</button>
+        <button class="toggle-btn" data-key="TLT">TLT</button>
         <button class="toggle-btn on" data-key="SPY">SPY</button>
-        <button class="toggle-btn on" data-key="BTC">BTC</button>
-        <button class="toggle-btn on" data-key="DXY">DXY</button>
-        <button class="toggle-btn on" data-key="USO">USO</button>
-        <button class="toggle-btn on" data-key="GLD">GLD</button>
+        <button class="toggle-btn" data-key="BTC">BTC</button>
+        <button class="toggle-btn" data-key="DXY">DXY</button>
+        <button class="toggle-btn" data-key="USO">USO</button>
+        <button class="toggle-btn" data-key="GLD">GLD</button>
       </div>
     </div>
-    <div class="canvas-container" style="height:260px">
-      <canvas id="indicatorChart"></canvas>
+    <div class="canvas-container">
+      <canvas id="indicatorChart" height="240"></canvas>
       <div class="watermark">HERDVIBE.COM</div>
     </div>
   </div>
@@ -445,33 +495,39 @@
       </div>
       <div class="panel-stat" id="zscore-current" style="color:#a78bfa">—</div>
     </div>
-    <div class="canvas-container" style="height:160px">
-      <canvas id="zscoreChart"></canvas>
+    <div class="canvas-container">
+      <canvas id="zscoreChart" height="140"></canvas>
       <div class="watermark">HERDVIBE.COM</div>
     </div>
   </div>
 
 </div>
 
-<!-- Guide -->
-<div class="guide-block">
-  <div class="guide-header" onclick="toggleGuide(this)">
-    <span>📖 사용 가이드</span><span>▼</span>
-  </div>
-  <div class="guide-body">
-    <p><strong>MOVE Index</strong>는 미국 채권시장의 변동성을 나타내는 지수입니다. VIX가 주식시장의 공포지수라면, MOVE는 채권시장의 공포지수로 볼 수 있습니다. 일반적으로 <strong>100 이상이면 높은 변동성</strong>, 150 이상이면 위기 수준으로 해석합니다.</p>
-    <p>아래 <strong>멀티 자산 인디케이터</strong>는 MOVE가 상승/하락할 때 주요 자산(VIX, TLT, SPY, BTC, DXY, USO, GLD)이 어떻게 반응했는지 비교 분석합니다. 기간 버튼이나 차트 드래그로 범위를 바꾸면 두 차트가 함께 연동됩니다.</p>
-    <p><strong>Z-Score 패널</strong>은 현재 MOVE 수준이 252일(약 1년) 역사 대비 얼마나 극단적인지 보여줍니다. +2 이상은 과열(채권 패닉), -2 이하는 과냉(채권 안정) 구간입니다. 위기 구간(금융위기, 코로나, Fed 긴축)은 배경색으로 표시되어 있습니다.</p>
-  </div>
-</div>
-
 <!-- Share Bar -->
 <div class="share-bar">
-  <span class="share-label">공유</span>
-  <button class="share-btn" onclick="shareTwitter()">𝕏 Twitter</button>
-  <button class="share-btn" onclick="shareKakao()">💬 KakaoTalk</button>
-  <button class="share-btn" onclick="shareTelegram()">✈️ Telegram</button>
-  <button class="share-btn" onclick="copyLink()">🔗 링크 복사</button>
+  <div class="share-bar-preview"><b>무브 인덱스(Move Index)</b> — herdvibe.com</div>
+  <div class="share-bar-buttons">
+    <button class="share-btn share-btn--x" onclick="doShare('twitter')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      <span class="lbl">트위터</span>
+    </button>
+    <button class="share-btn share-btn--kakao" onclick="doShare('kakao')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.724 1.8 5.112 4.508 6.458l-1.148 4.265a.5.5 0 0 0 .764.533l4.94-3.26c.304.02.612.03.936.03 5.523 0 10-3.462 10-7.735C22 6.463 17.523 3 12 3z"/></svg>
+      <span class="lbl">카카오톡</span>
+    </button>
+    <button class="share-btn share-btn--tg" onclick="doShare('telegram')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+      <span class="lbl">텔레그램</span>
+    </button>
+    <button class="share-btn share-btn--ig" onclick="doShare('instagram', this)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+      <span class="lbl">인스타</span>
+    </button>
+    <button class="share-btn share-btn--copy" onclick="doShare('link', this)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span class="lbl">링크 복사</span>
+    </button>
+  </div>
 </div>
 
 <script>
@@ -496,7 +552,7 @@ let rawData = null;
 let moveChart = null;
 let indicatorChart = null;
 let zscoreChart = null;
-let activeToggles = new Set(INDICATOR_KEYS);
+let activeToggles = new Set(['SPY']);
 let currentPeriodMs = 0; // 0 = ALL
 
 // ── 데이터 로드 ────────────────────────────────────────────────────────────────
@@ -597,7 +653,7 @@ function makeCrisisPlugin(zones) {
 function commonOptions(onZoomPan) {
   return {
     responsive: true,
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
     animation: { duration: 300 },
     interaction: { mode: 'index', intersect: false },
     plugins: {
@@ -907,50 +963,67 @@ document.getElementById('reset-zoom').addEventListener('click', () => {
   rebuildIndicatorDatasets();
 });
 
-// ── 가이드 토글 ───────────────────────────────────────────────────────────────
-function toggleGuide(header) {
-  const body = header.nextElementSibling;
-  body.classList.toggle('open');
-  header.querySelector('span:last-child').textContent = body.classList.contains('open') ? '▲' : '▼';
-}
+// ── 가이드 토글 (미사용) ──────────────────────────────────────────────────────
+function toggleGuide() {}
 
 // ── 공유 기능 ──────────────────────────────────────────────────────────────────
-function shareTwitter() {
-  const url = encodeURIComponent(location.href);
-  const text = encodeURIComponent('📊 MOVE Index (채권 변동성 지수) 실시간 분석 | HerdVibe');
-  window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`,'_blank');
+const SHARE_URL = 'https://herdvibe.com/118';
+const SHARE_TITLE = '무브 인덱스(Move Index) — herdvibe.com';
+const KAKAO_KEY = 'a43ed7b39fac35458f4f9df925a279b5';
+
+function ensureKakao() {
+  try { if (typeof Kakao !== 'undefined' && !Kakao.isInitialized()) Kakao.init(KAKAO_KEY); return typeof Kakao !== 'undefined' && Kakao.isInitialized(); } catch(e) { return false; }
 }
-function shareTelegram() {
-  const url = encodeURIComponent(location.href);
-  window.open(`https://t.me/share/url?url=${url}&text=MOVE Index Dashboard | HerdVibe`,'_blank');
+function copyToClipboard(t) {
+  if (window.parent !== window) { window.parent.postMessage({type:'copy', text:t}, '*'); }
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    navigator.clipboard.writeText(t).catch(() => _fbCopy(t));
+  } else { _fbCopy(t); }
 }
-function shareKakao() {
-  if (window.Kakao) {
+function _fbCopy(t) {
+  var a = document.createElement('textarea'); a.value = t;
+  a.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+  document.body.appendChild(a); a.focus(); a.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(a);
+}
+function flashCopied(btn) {
+  if (!btn) return;
+  var orig = btn.innerHTML;
+  btn.style.background = '#22c55e'; btn.style.color = '#fff'; btn.style.borderColor = '#22c55e';
+  var hl = btn.querySelector('.lbl');
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>' + (hl ? '<span class="lbl" style="color:#fff">복사됨!</span>' : '');
+  setTimeout(() => { btn.style.background=''; btn.style.color=''; btn.style.borderColor=''; btn.innerHTML=orig; }, 2000);
+}
+function showToast(msg) {
+  var w = document.querySelector('.toast-wrap');
+  if (!w) { w = document.createElement('div'); w.className = 'toast-wrap'; document.body.appendChild(w); }
+  var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; w.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateY(12px)'; t.style.transition='.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+function kakaoShare() {
+  if (!ensureKakao()) { copyToClipboard(SHARE_URL); showToast('링크 복사완료!'); return; }
+  try {
     Kakao.Share.sendDefault({
       objectType: 'feed',
       content: {
-        title: 'MOVE Index Dashboard | HerdVibe',
+        title: SHARE_TITLE,
         description: '채권 변동성 지수 실시간 분석',
-        imageUrl: 'https://herdvibe.com/img/og-move.png',
-        link: { mobileWebUrl: location.href, webUrl: location.href }
-      }
+        imageUrl: 'https://kittycapital.github.io/assets/herdvibe-og.png',
+        link: { mobileWebUrl: SHARE_URL, webUrl: SHARE_URL }
+      },
+      buttons: [{ title: '대시보드 보기', link: { mobileWebUrl: SHARE_URL, webUrl: SHARE_URL } }]
     });
-  }
+  } catch(e) { copyToClipboard(SHARE_URL); showToast('링크 복사완료!'); }
 }
-function copyLink() {
-  const copy = text => {
-    if (navigator.clipboard) return navigator.clipboard.writeText(text);
-    const ta = document.createElement('textarea');
-    ta.value = text; document.body.appendChild(ta); ta.select();
-    document.execCommand('copy'); document.body.removeChild(ta);
-    return Promise.resolve();
-  };
-  copy(location.href).then(() => {
-    const btn = event.target;
-    const orig = btn.textContent;
-    btn.textContent = '✅ 복사됨';
-    setTimeout(() => btn.textContent = orig, 1500);
-  });
+function doShare(p, btn) {
+  switch(p) {
+    case 'twitter':  window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(SHARE_TITLE)+'&url='+encodeURIComponent(SHARE_URL), '_blank'); break;
+    case 'telegram': window.open('https://t.me/share/url?url='+encodeURIComponent(SHARE_URL)+'&text='+encodeURIComponent(SHARE_TITLE), '_blank'); break;
+    case 'kakao':    kakaoShare(); break;
+    case 'instagram': copyToClipboard(SHARE_URL); flashCopied(btn); showToast('링크 복사완료! 인스타그램에 붙여넣기 하세요'); break;
+    case 'link':     copyToClipboard(SHARE_URL); flashCopied(btn); showToast('링크가 복사되었습니다'); break;
+  }
 }
 
 // ── 초기화 ─────────────────────────────────────────────────────────────────────
@@ -992,11 +1065,6 @@ init();
 </script>
 
 <!-- KakaoTalk SDK -->
-<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"></script>
-<script>
-  if (window.Kakao && !Kakao.isInitialized()) {
-    Kakao.init('a43ed7b39fac35458f4f9df925a279b5');
-  }
-</script>
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.1/kakao.min.js" crossorigin="anonymous" async></script>
 </body>
 </html>
