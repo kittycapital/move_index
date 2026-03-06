@@ -755,9 +755,16 @@ function buildMoveChart() {
 function buildIndicatorChart() {
   const crisisPlugin = makeCrisisPlugin(rawData.crisis_zones || []);
 
+  // MOVE 기준으로 초기 x범위 설정
+  const allMovePts = rawData.series['MOVE'] || [];
+  const initMin = allMovePts.length ? allMovePts[0][0] : undefined;
+  const initMax = allMovePts.length ? allMovePts[allMovePts.length - 1][0] : undefined;
+
   const opts = commonOptions(syncFromIndicator);
   opts.plugins.tooltip.callbacks.label = (item) => ` ${item.dataset.label}: ${item.parsed.y.toFixed(2)}%`;
   opts.scales.y.ticks.callback = v => v.toFixed(0) + '%';
+  opts.scales.x.min = initMin;
+  opts.scales.x.max = initMax;
 
   opts.scales.y.grid = {
     color: ctx => ctx.tick.value === 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'
