@@ -7,8 +7,8 @@
 <meta property="og:title" content="MOVE Index Dashboard | HerdVibe">
 <meta property="og:description" content="채권 변동성 지수(MOVE)와 주요 자산 비교 분석">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -501,13 +501,24 @@ let currentPeriodMs = 0; // 0 = ALL
 
 // ── 데이터 로드 ────────────────────────────────────────────────────────────────
 async function loadData() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(DATA_URL);
+    const res = await fetch(DATA_URL, { signal: controller.signal });
+    clearTimeout(timeout);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    rawData = await res.json();
+    const json = await res.json();
+    // MOVE/VIX/TLT/DXY가 없으면 데모로 채우기
+    const demo = generateDemoData();
+    ['MOVE','VIX','TLT','DXY','MOVE_Z'].forEach(k => {
+      if (!json.series[k] || json.series[k].length === 0) {
+        json.series[k] = demo.series[k];
+      }
+    });
+    rawData = json;
   } catch(e) {
-    // Demo fallback: generate synthetic data
-    rawData = generateDemoData();
+    clearTimeout(timeout);
+    throw e;
   }
 }
 
@@ -814,14 +825,14 @@ function applyPeriod(months) {
   moveChart.data.datasets[0].data = movePts.map(p => ({x:p[0], y:p[1]}));
   moveChart.options.scales.x.min = undefined;
   moveChart.options.scales.x.max = undefined;
-  moveChart.resetZoom();
+  safeResetZoom(moveChart);
   moveChart.update('none');
   updateMoveStats(movePts);
 
   // Indicator
   indicatorChart.options.scales.x.min = undefined;
   indicatorChart.options.scales.x.max = undefined;
-  indicatorChart.resetZoom();
+  safeResetZoom(indicatorChart);
   rebuildIndicatorDatasets();
 
   // Z-Score
@@ -834,7 +845,7 @@ function applyPeriod(months) {
   });
   zscoreChart.options.scales.x.min = undefined;
   zscoreChart.options.scales.x.max = undefined;
-  zscoreChart.resetZoom();
+  safeResetZoom(zscoreChart);
   zscoreChart.update('none');
 }
 
@@ -875,6 +886,10 @@ document.getElementById('toggles').addEventListener('click', e => {
   rebuildIndicatorDatasets();
 });
 
+function safeResetZoom(chart) {
+  try { if (chart && chart.resetZoom) chart.resetZoom(); } catch(e) {}
+}
+
 // ── 기간 버튼 이벤트 ──────────────────────────────────────────────────────────
 document.querySelectorAll('.period-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -886,9 +901,9 @@ document.querySelectorAll('.period-btn').forEach(btn => {
 
 // ── 줌 리셋 ───────────────────────────────────────────────────────────────────
 document.getElementById('reset-zoom').addEventListener('click', () => {
-  moveChart.resetZoom();
-  indicatorChart.resetZoom();
-  zscoreChart.resetZoom();
+  safeResetZoom(moveChart);
+  safeResetZoom(indicatorChart);
+  safeResetZoom(zscoreChart);
   rebuildIndicatorDatasets();
 });
 
@@ -939,19 +954,38 @@ function copyLink() {
 }
 
 // ── 초기화 ─────────────────────────────────────────────────────────────────────
-async function init() {
-  await loadData();
-
-  document.getElementById('updated-at').textContent = rawData.updated_at || '';
-
-  buildMoveChart();
-  buildIndicatorChart();
-  buildZScoreChart();
-
-  // Hide loading
+function hideLoading() {
   const loading = document.getElementById('loading');
   loading.style.opacity = '0';
-  setTimeout(() => loading.style.display = 'none', 400);
+  setTimeout(() => { loading.style.display = 'none'; }, 400);
+}
+
+async function init() {
+  // 안전망: 5초 후 강제 로딩 해제
+  const safetyTimer = setTimeout(hideLoading, 5000);
+
+  try {
+    await loadData();
+    document.getElementById('updated-at').textContent = rawData.updated_at || new Date().toISOString().slice(0,10);
+    buildMoveChart();
+    buildIndicatorChart();
+    buildZScoreChart();
+  } catch(e) {
+    console.error('Init error:', e);
+    // 에러 발생해도 데모 데이터로 재시도
+    try {
+      rawData = generateDemoData();
+      document.getElementById('updated-at').textContent = 'Demo Data';
+      buildMoveChart();
+      buildIndicatorChart();
+      buildZScoreChart();
+    } catch(e2) {
+      console.error('Demo fallback error:', e2);
+    }
+  }
+
+  clearTimeout(safetyTimer);
+  hideLoading();
 }
 
 init();
