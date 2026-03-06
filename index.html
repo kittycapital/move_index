@@ -844,6 +844,7 @@ function syncFromMove({ chart }) {
   if (indicatorChart) {
     indicatorChart.options.scales.x.min = min;
     indicatorChart.options.scales.x.max = max;
+    indicatorChart.update('none');
     rebuildIndicatorDatasetsZoomed(min, max);
   }
   if (zscoreChart) {
@@ -893,22 +894,19 @@ function rebuildIndicatorDatasetsZoomed(minTs, maxTs) {
 function applyPeriod(months) {
   currentPeriodMs = months;
 
-  // 전체 데이터 기준 x범위
   const allMovePts = rawData.series['MOVE'] || [];
   const globalMin = allMovePts.length ? allMovePts[0][0] : undefined;
   const globalMax = allMovePts.length ? allMovePts[allMovePts.length - 1][0] : undefined;
 
-  // 뷰 윈도우 계산 (0 = ALL)
   const viewMin = months > 0 ? Date.now() - months * 30 * 86400000 : globalMin;
   const viewMax = globalMax;
 
-  // 세 차트 모두 x축 뷰만 조정 (데이터는 그대로)
+  // resetZoom 없이 직접 min/max 세팅 후 update
   [moveChart, indicatorChart, zscoreChart].forEach(chart => {
     if (!chart) return;
     chart.options.scales.x.min = viewMin;
     chart.options.scales.x.max = viewMax;
-    safeResetZoom(chart);
-    chart.update('none');
+    chart.update('active');
   });
 
   updateMoveStats(allMovePts);
@@ -967,9 +965,18 @@ document.querySelectorAll('.period-btn').forEach(btn => {
 
 // ── 줌 리셋 ───────────────────────────────────────────────────────────────────
 document.getElementById('reset-zoom').addEventListener('click', () => {
-  safeResetZoom(moveChart);
-  safeResetZoom(indicatorChart);
-  safeResetZoom(zscoreChart);
+  const allMovePts = rawData.series['MOVE'] || [];
+  const globalMin = allMovePts.length ? allMovePts[0][0] : undefined;
+  const globalMax = allMovePts.length ? allMovePts[allMovePts.length - 1][0] : undefined;
+  [moveChart, indicatorChart, zscoreChart].forEach(chart => {
+    if (!chart) return;
+    chart.options.scales.x.min = globalMin;
+    chart.options.scales.x.max = globalMax;
+    chart.update('active');
+  });
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.period-btn[data-months="0"]').classList.add('active');
+  currentPeriodMs = 0;
   rebuildIndicatorDatasets();
 });
 
