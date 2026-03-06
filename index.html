@@ -741,6 +741,7 @@ function buildMoveChart() {
         borderWidth: 1.5,
         fill: true,
         pointRadius: 0,
+        pointHoverRadius: 0,
         tension: 0.2,
       }]
     },
@@ -817,13 +818,19 @@ function buildZScoreChart() {
 
 // ── Indicator 데이터셋 재구성 ──────────────────────────────────────────────────
 function rebuildIndicatorDatasets() {
-  // 전체 데이터를 로드 (뷰 조정은 x축 min/max로 처리)
+  // 현재 뷰의 x 범위 가져오기
+  const viewMin = indicatorChart.options.scales.x.min;
+  const viewMax = indicatorChart.options.scales.x.max;
+
   const datasets = [];
   INDICATOR_KEYS.forEach(key => {
     if (!activeToggles.has(key)) return;
     const raw = rawData.series[key] || [];
-    // 전체 기간 기준 정규화 (시작점 = 데이터 첫번째 값)
-    const pts = normalizePercent(raw);
+    // 뷰 범위 내 데이터만
+    const inView = raw.filter(p => p[0] >= viewMin && p[0] <= viewMax);
+    if (!inView.length) return;
+    // 뷰 시작점 기준으로 정규화
+    const pts = normalizePercent(inView);
     datasets.push({
       label: key,
       data: pts.map(p => ({x: p[0], y: p[1]})),
@@ -831,6 +838,7 @@ function rebuildIndicatorDatasets() {
       backgroundColor: 'transparent',
       borderWidth: 1.5,
       pointRadius: 0,
+      pointHoverRadius: 0,
       tension: 0.2,
     });
   });
@@ -844,8 +852,7 @@ function syncFromMove({ chart }) {
   if (indicatorChart) {
     indicatorChart.options.scales.x.min = min;
     indicatorChart.options.scales.x.max = max;
-    indicatorChart.update('none');
-    rebuildIndicatorDatasetsZoomed(min, max);
+    rebuildIndicatorDatasets(); // 뷰 범위 기준 재정규화
   }
   if (zscoreChart) {
     zscoreChart.options.scales.x.min = min;
@@ -866,6 +873,7 @@ function syncFromIndicator({ chart }) {
     zscoreChart.options.scales.x.max = max;
     zscoreChart.update('none');
   }
+  rebuildIndicatorDatasets();
 }
 
 function rebuildIndicatorDatasetsZoomed(minTs, maxTs) {
