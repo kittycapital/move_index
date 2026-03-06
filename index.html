@@ -692,6 +692,7 @@ function commonOptions(onZoomPan) {
       x: {
         type: 'time',
         time: { tooltipFormat: 'yyyy-MM-dd' },
+        bounds: 'data',
         grid: { color: 'rgba(255,255,255,0.04)' },
         ticks: {
           color: '#555',
@@ -827,11 +828,17 @@ function buildZScoreChart() {
 
 // ── Indicator 데이터셋 재구성 ──────────────────────────────────────────────────
 function rebuildIndicatorDatasets() {
+  // MOVE 기준 x범위로 필터링 (각 자산의 시작일이 달라도 같은 구간 표시)
+  const movePts = filterByPeriod(rawData.series['MOVE'] || [], currentPeriodMs);
+  const xMin = movePts.length ? movePts[0][0] : 0;
+  const xMax = movePts.length ? movePts[movePts.length - 1][0] : Date.now();
+
   const datasets = [];
   INDICATOR_KEYS.forEach(key => {
     if (!activeToggles.has(key)) return;
     const raw = rawData.series[key] || [];
-    const filtered = filterByPeriod(raw, currentPeriodMs);
+    // MOVE 범위와 동일한 구간으로 자름
+    const filtered = raw.filter(p => p[0] >= xMin && p[0] <= xMax);
     const pts = normalizePercent(filtered);
     datasets.push({
       label: key,
@@ -901,24 +908,27 @@ function rebuildIndicatorDatasetsZoomed(minTs, maxTs) {
 // ── 기간 버튼 ──────────────────────────────────────────────────────────────────
 function applyPeriod(months) {
   currentPeriodMs = months;
-  const { min, max } = getCommonXRange();
 
-  // MOVE
+  // MOVE 기준으로 공통 x범위 계산
   const movePts = filterByPeriod(rawData.series['MOVE'] || [], months);
+  const xMin = movePts.length ? movePts[0][0] : undefined;
+  const xMax = movePts.length ? movePts[movePts.length - 1][0] : undefined;
+
+  // MOVE 차트
   moveChart.data.datasets[0].data = movePts.map(p => ({x:p[0], y:p[1]}));
-  moveChart.options.scales.x.min = min;
-  moveChart.options.scales.x.max = max;
+  moveChart.options.scales.x.min = xMin;
+  moveChart.options.scales.x.max = xMax;
   safeResetZoom(moveChart);
   moveChart.update('none');
   updateMoveStats(movePts);
 
-  // Indicator
-  indicatorChart.options.scales.x.min = min;
-  indicatorChart.options.scales.x.max = max;
+  // Indicator 차트 — x범위 MOVE와 동일하게 고정
+  indicatorChart.options.scales.x.min = xMin;
+  indicatorChart.options.scales.x.max = xMax;
   safeResetZoom(indicatorChart);
   rebuildIndicatorDatasets();
 
-  // Z-Score
+  // Z-Score 차트
   const zPts = filterByPeriod(rawData.series['MOVE_Z'] || [], months);
   zscoreChart.data.datasets[0].data = zPts.map(p => ({x:p[0], y:p[1]}));
   zscoreChart.data.datasets[0].backgroundColor = zPts.map(p => {
@@ -926,8 +936,8 @@ function applyPeriod(months) {
     if (p[1] <= -2) return 'rgba(81,207,102,0.7)';
     return 'rgba(167,139,250,0.5)';
   });
-  zscoreChart.options.scales.x.min = min;
-  zscoreChart.options.scales.x.max = max;
+  zscoreChart.options.scales.x.min = xMin;
+  zscoreChart.options.scales.x.max = xMax;
   safeResetZoom(zscoreChart);
   zscoreChart.update('none');
 }
