@@ -17,8 +17,13 @@ YFINANCE_TICKERS = {
     "VIX":  "^VIX",
     "TLT":  "TLT",
     "DXY":  "DX-Y.NYB",
+    "SPY":  "SPY",
+    "BTC":  "BTC-USD",
+    "USO":  "USO",
+    "GLD":  "GLD",
 }
 
+# CSV fallback (yfinance 실패 시 사용)
 CSV_FILES = {
     "SPY": "data/SPY.csv",
     "BTC": "data/BTC_USD.csv",
@@ -49,6 +54,8 @@ def fetch_yfinance():
 def load_csvs():
     result = {}
     for name, path in CSV_FILES.items():
+        if not os.path.exists(path):
+            continue
         try:
             df = pd.read_csv(path, parse_dates=["Date"], index_col="Date")
             df = df[["Close"]].dropna()
@@ -91,10 +98,17 @@ def main():
     print("📡 yfinance 수집 중...")
     yf_data = fetch_yfinance()
 
-    print("📂 CSV 로드 중...")
+    print("📂 CSV fallback 체크 중...")
     csv_data = load_csvs()
 
-    all_data = {**yf_data, **csv_data}
+    # yfinance 우선, 실패한 것만 CSV fallback
+    all_data = {}
+    for name in set(list(yf_data.keys()) + list(csv_data.keys())):
+        if name in yf_data:
+            all_data[name] = yf_data[name]
+        elif name in csv_data:
+            print(f"  ⚠️ {name}: yfinance 실패 → CSV fallback 사용")
+            all_data[name] = csv_data[name]
 
     # MOVE Z-Score
     move_z = None
