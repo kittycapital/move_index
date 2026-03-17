@@ -654,6 +654,7 @@ function commonOptions(onZoomPan) {
   return {
     responsive: true,
     maintainAspectRatio: true,
+    layout: { padding: { top: 8 } },
     animation: { duration: 300 },
     interaction: { mode: 'index', intersect: false },
     plugins: {
@@ -703,6 +704,7 @@ function commonOptions(onZoomPan) {
       },
       y: {
         position: 'right',
+        grace: '5%',
         grid: { color: 'rgba(255,255,255,0.04)' },
         ticks: {
           color: '#555',
